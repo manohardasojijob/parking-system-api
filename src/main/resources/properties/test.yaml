@@ -1,0 +1,28 @@
+api:
+  id: "123456" # replace with real id once added to api manager
+  #API Configurations
+  name: "${project.name}"
+  version: "${api.version}"
+  path: /api/*
+  
+http:
+  private:
+    port: "8091"
+  
+httpsRequest:
+  host: "sm-api-preprod.acme.com"
+  port: "443"
+  path:
+    sqlpath: "/finance/inbound/oracle-erp-sql-sys-api/v1/oracle/runsql"
+    getPath: "/finance/outbound/finance-parkinglot-sys-api/v1/parkinglot"
+    eventsPatchPath: "/finance-parkinglot-sys-api/v1/events"
+  reconnection:
+    frequency: "2000"
+    attempts: "2" 
+  clientId: "replace with actual values"
+  clientSecret: "replace with actual values"
+        
+mq:
+  clientId: "replace with actual values"
+  clientSecret: "replace with actual values"
+  

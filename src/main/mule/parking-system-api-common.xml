@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+	<!-- Not found: set vars.errorMessage before flow-ref; sets payload to Error type and vars.httpStatus=404 -->
+	<sub-flow name="not-found" doc:name="not-found">
+		<ee:transform doc:name="Error response (404)">
+			<ee:message>
+				<ee:set-payload resource="dwl/error-response.dwl" />
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus">404</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+
+	<!-- Bad request: set vars.errorMessage (and optionally vars.errorCode) before flow-ref; sets payload to Error type and vars.httpStatus=400 -->
+	<sub-flow name="bad-request" doc:name="bad-request">
+		<ee:transform doc:name="Error response (400)">
+			<ee:message>
+				<ee:set-payload resource="dwl/error-response.dwl" />
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus">400</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+
+	<!-- Conflict: set vars.errorMessage before flow-ref; sets payload to Error type and vars.httpStatus=409 -->
+	<sub-flow name="conflict" doc:name="conflict">
+		<ee:transform doc:name="Error response (409)">
+			<ee:message>
+				<ee:set-payload resource="dwl/error-response.dwl" />
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus">409</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+</mule>

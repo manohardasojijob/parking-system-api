@@ -1,0 +1,29 @@
+# Logger Configurations [DO NOT DELETE - Also referenced by core-resources-lib]
+current.app:         
+  name:               "${project.artifactId}"
+  version:            "${project.version}"
+
+ 
+
+#  Needed when testing in Studio and app is restarted since resources filtering in pom will not update these props.
+project:
+  artifactId: "${project.artifactId}"
+  version: "${project.version}"
+
+raml:
+  api:
+    location: "api/parking-system-api.raml"
+
+health.verbose.client.id: ""
+
+# Include environment independent properties below
+apiOrgId: "d7699a02-16e5-43d5-ae1c-875f3a9196e0"
+
+connector:
+  retries: "3"
+  retryIntervel: "5000"
+  response:
+    timeout: "30000"
+
+statusUpdate_queryString: "UPDATE events SET status = :status, error_type = :error_type, error_description = :error_desc,  updated_timestamp = to_char(sysdate,'yyyy-mm-dd hh24:mi:ss') WHERE job_id = :job_id and MULE_CORRELATION_ID = :correlation_id"
+

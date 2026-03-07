@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <error-handler name="global-error-handler" doc:name="global-error-handler">
+        <on-error-continue type="DB:CONNECTIVITY" enableNotifications="true" logException="true" doc:name="DB Connectivity">
+            <set-variable value="Service temporarily unavailable" variableName="errorMessage" doc:name="Set message" />
+            <set-variable value="DB_CONNECTIVITY" variableName="errorCode" doc:name="Set code" />
+            <ee:transform doc:name="Error response (503)">
+                <ee:message><ee:set-payload resource="dwl/error-response.dwl" /></ee:message>
+                <ee:variables><ee:set-variable variableName="httpStatus">503</ee:set-variable></ee:variables>
+            </ee:transform>
+        </on-error-continue>
+        <on-error-continue type="DB:QUERY_EXECUTION" enableNotifications="true" logException="true" doc:name="DB Query">
+            <set-variable value="An error occurred processing your request" variableName="errorMessage" doc:name="Set message" />
+            <set-variable value="DB_ERROR" variableName="errorCode" doc:name="Set code" />
+            <ee:transform doc:name="Error response (500)">
+                <ee:message><ee:set-payload resource="dwl/error-response.dwl" /></ee:message>
+                <ee:variables><ee:set-variable variableName="httpStatus">500</ee:set-variable></ee:variables>
+            </ee:transform>
+        </on-error-continue>
+        <on-error-continue type="VALIDATION" enableNotifications="true" logException="true" doc:name="Validation">
+            <set-variable value="#[error.description default error.message default 'Validation error']" variableName="errorMessage" doc:name="Set message" />
+            <set-variable value="VALIDATION" variableName="errorCode" doc:name="Set code" />
+            <ee:transform doc:name="Error response (400)">
+                <ee:message><ee:set-payload resource="dwl/error-response.dwl" /></ee:message>
+                <ee:variables><ee:set-variable variableName="httpStatus">400</ee:set-variable></ee:variables>
+            </ee:transform>
+        </on-error-continue>
+        <on-error-continue type="APIKIT:BAD_REQUEST" enableNotifications="true" logException="true" doc:name="APIKit Bad Request">
+            <set-variable value="#[error.description default 'Bad request']" variableName="errorMessage" doc:name="Set message" />
+            <set-variable value="VALIDATION" variableName="errorCode" doc:name="Set code" />
+            <ee:transform doc:name="Error response (400)">
+                <ee:message><ee:set-payload resource="dwl/error-response.dwl" /></ee:message>
+                <ee:variables><ee:set-variable variableName="httpStatus">400</ee:set-variable></ee:variables>
+            </ee:transform>
+        </on-error-continue>
+        <on-error-continue type="ANY" enableNotifications="true" logException="true" doc:name="Any (500)">
+            <set-variable value="An internal error occurred" variableName="errorMessage" doc:name="Set message" />
+            <set-variable value="INTERNAL" variableName="errorCode" doc:name="Set code" />
+            <ee:transform doc:name="Error response (500)">
+                <ee:message><ee:set-payload resource="dwl/error-response.dwl" /></ee:message>
+                <ee:variables><ee:set-variable variableName="httpStatus">500</ee:set-variable></ee:variables>
+            </ee:transform>
+        </on-error-continue>
+    </error-handler>
+
+</mule>

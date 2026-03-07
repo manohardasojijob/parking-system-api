@@ -1,0 +1,452 @@
+#%RAML 1.0
+title: Parking System API
+version: v1
+baseUri: /api/v1
+mediaType: application/json
+
+types:
+  Zone:
+    type: object
+    properties:
+      zoneId: string
+      zoneName: string
+      zoneCode: string
+      city: string
+      state: string
+      latitude: number
+      longitude: number
+      createdAt?: string
+      updatedAt?: string
+  ZoneList:
+    type: object
+    properties:
+      zones: Zone[]
+      total?: number
+  Lot:
+    type: object
+    properties:
+      lotId: string
+      zoneId: string
+      lotName: string
+      lotCode: string
+      address: string
+      latitude: number
+      longitude: number
+      totalSlots: number
+      hourlyRateInr: number
+      dailyMaxInr?: number
+      operatingHours?: string
+      lotType: string
+      isActive: boolean
+      createdAt?: string
+      updatedAt?: string
+  LotList:
+    type: object
+    properties:
+      lots: Lot[]
+      total?: number
+  Slot:
+    type: object
+    properties:
+      slotId: string
+      lotId: string
+      slotNumber: string
+      floorLevel?: string
+      slotType: string
+      sensorId?: string
+      status: string
+      lastStatusChange?: string
+      createdAt?: string
+      updatedAt?: string
+  SlotList:
+    type: object
+    properties:
+      slots: Slot[]
+      total?: number
+  AvailabilitySummary:
+    type: object
+    properties:
+      lotId: string
+      available: number
+      occupied: number
+      reserved: number
+      maintenance: number
+      offline: number
+  SlotStatusUpdate:
+    type: object
+    properties:
+      status: string
+      eventSource?: string
+      eventId?: string
+  HoldRequest:
+    type: object
+    properties:
+      slotId: string
+      userId: string
+      holdExpiryMinutes: number
+  Hold:
+    type: object
+    properties:
+      holdId: string
+      slotId: string
+      userId: string
+      holdStart: string
+      holdExpiry: string
+      status: string
+      createdAt?: string
+  ReservationRequest:
+    type: object
+    properties:
+      slotId: string
+      userId: string
+      vehicleNumber: string
+      vehicleType: string
+      startTime: string
+      endTime: string
+  ReservationUpdate:
+    type: object
+    properties:
+      status?: string
+      actualEntryTime?: string
+      actualExitTime?: string
+      amountInr?: number
+      paymentStatus?: string
+  Reservation:
+    type: object
+    properties:
+      reservationId: string
+      slotId: string
+      userId: string
+      vehicleNumber: string
+      vehicleType: string
+      startTime: string
+      endTime: string
+      actualEntryTime?: string
+      actualExitTime?: string
+      status: string
+      amountInr?: number
+      paymentStatus?: string
+      createdAt?: string
+      updatedAt?: string
+  ReservationList:
+    type: object
+    properties:
+      reservations: Reservation[]
+      total?: number
+  Error:
+    type: object
+    properties:
+      message: string
+      code?: string
+
+/health:
+  get:
+    description: Liveness health check.
+    queryParameters:
+      mode:
+        required: false
+        description: Use `verbose` for extended details.
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              { "timestamp": "2026-01-01T00:00:00Z", "status": "Running", "details": { "appName": "parking-system-api" } }
+/health/ready:
+  get:
+    description: Readiness check (includes DB connectivity).
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              { "status": "Ready", "database": "connected" }
+      503:
+        body:
+          application/json:
+            type: Error
+
+/zones:
+  get:
+    description: List parking zones with optional filters.
+    queryParameters:
+      city:
+        required: false
+        type: string
+      limit:
+        required: false
+        type: integer
+        default: 50
+      offset:
+        required: false
+        type: integer
+        default: 0
+    responses:
+      200:
+        body:
+          application/json:
+            type: ZoneList
+  /{zoneId}:
+    get:
+      description: Get zone by ID.
+      responses:
+        200:
+          body:
+            application/json:
+              type: Zone
+        404:
+          body:
+            application/json:
+              type: Error
+    /lots:
+      get:
+        description: List lots in a zone.
+        queryParameters:
+          isActive:
+            required: false
+            type: boolean
+          lotType:
+            required: false
+            type: string
+          limit:
+            required: false
+            type: integer
+            default: 50
+          offset:
+            required: false
+            type: integer
+            default: 0
+        responses:
+          200:
+            body:
+              application/json:
+                type: LotList
+
+/lots:
+  get:
+    description: List lots with optional zone/city filters.
+    queryParameters:
+      zoneCode:
+        required: false
+        type: string
+      city:
+        required: false
+        type: string
+      limit:
+        required: false
+        type: integer
+        default: 50
+      offset:
+        required: false
+        type: integer
+        default: 0
+    responses:
+      200:
+        body:
+          application/json:
+            type: LotList
+  /{lotId}:
+    get:
+      description: Get lot by ID.
+      responses:
+        200:
+          body:
+            application/json:
+              type: Lot
+        404:
+          body:
+            application/json:
+              type: Error
+    /slots:
+      get:
+        description: List slots in a lot.
+        queryParameters:
+          status:
+            required: false
+            type: string
+          slotType:
+            required: false
+            type: string
+          limit:
+            required: false
+            type: integer
+            default: 100
+          offset:
+            required: false
+            type: integer
+            default: 0
+        responses:
+          200:
+            body:
+              application/json:
+                type: SlotList
+    /availability:
+      get:
+        description: Get availability summary for a lot.
+        responses:
+          200:
+            body:
+              application/json:
+                type: AvailabilitySummary
+
+/slots/{slotId}:
+  get:
+    description: Get slot by ID.
+    responses:
+      200:
+        body:
+          application/json:
+            type: Slot
+      404:
+        body:
+          application/json:
+            type: Error
+  patch:
+    description: Update slot status (and record history).
+    body:
+      application/json:
+        type: SlotStatusUpdate
+    responses:
+      200:
+        body:
+          application/json:
+            type: Slot
+      404:
+        body:
+          application/json:
+            type: Error
+
+/holds:
+  post:
+    description: Create a hold on a slot.
+    body:
+      application/json:
+        type: HoldRequest
+    responses:
+      201:
+        body:
+          application/json:
+            type: Hold
+      400:
+        body:
+          application/json:
+            type: Error
+      409:
+        body:
+          application/json:
+            type: Error
+  /{holdId}:
+    get:
+      description: Get hold by ID.
+      responses:
+        200:
+          body:
+            application/json:
+              type: Hold
+        404:
+          body:
+            application/json:
+              type: Error
+    delete:
+      description: Release a hold.
+      responses:
+        200:
+          body:
+            application/json:
+              type: Hold
+        404:
+          body:
+            application/json:
+              type: Error
+
+/reservations:
+  get:
+    description: List reservations with optional filters.
+    queryParameters:
+      userId:
+        required: false
+        type: string
+      status:
+        required: false
+        type: string
+      limit:
+        required: false
+        type: integer
+        default: 50
+      offset:
+        required: false
+        type: integer
+        default: 0
+    responses:
+      200:
+        body:
+          application/json:
+            type: ReservationList
+  post:
+    description: Create a reservation.
+    body:
+      application/json:
+        type: ReservationRequest
+    responses:
+      201:
+        body:
+          application/json:
+            type: Reservation
+      400:
+        body:
+          application/json:
+            type: Error
+      409:
+        body:
+          application/json:
+            type: Error
+  /{reservationId}:
+    get:
+      description: Get reservation by ID.
+      responses:
+        200:
+          body:
+            application/json:
+              type: Reservation
+        404:
+          body:
+            application/json:
+              type: Error
+    patch:
+      description: Update reservation (status, times, amount, payment).
+      body:
+        application/json:
+          type: ReservationUpdate
+      responses:
+        200:
+          body:
+            application/json:
+              type: Reservation
+        404:
+          body:
+            application/json:
+              type: Error
+    /confirm:
+      post:
+        description: Confirm reservation.
+        responses:
+          200:
+            body:
+              application/json:
+                type: Reservation
+          404:
+            body:
+              application/json:
+                type: Error
+    /cancel:
+      post:
+        description: Cancel reservation.
+        responses:
+          200:
+            body:
+              application/json:
+                type: Reservation
+          404:
+            body:
+              application/json:
+                type: Error

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+	xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<munit:config name="api-test-suite.xml" />
+	<http:request-config name="Munits_HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="9e7f3545-b96f-44c0-a695-a4880cc042c9">
+		<http:request-connection host="localhost" port="8084" protocol="HTTPS" connectionIdleTimeout="300000">
+			<tls:context >
+				<tls:trust-store insecure="true" />
+			</tls:context>
+		</http:request-connection>
+	</http:request-config>
+<munit:test name="get:\health:parking-system-api-test" doc:id="8970058c-a6a6-4c49-b533-941a30d8f5d5" >
+        <munit:behavior>
+            <munit-tools:mock-when doc:name="Mock Listener" doc:id="5f313115-d7d6-4a14-928d-ed3c14a02311" processor="http:listener">
+                <munit-tools:with-attributes >
+                    <munit-tools:with-attribute whereValue="HTTP_Listener_config_domain_project" attributeName="config-ref" />
+                </munit-tools:with-attributes>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution >
+            <flow-ref doc:name="Flow-ref to get:\health:parking-system-api-config" doc:id="fb401b11-5011-44c1-b19d-b4f6d8930768" name="get:\health:parking-system-api-config"/>
+        </munit:execution>
+        <munit:validation >
+            <munit-tools:assert-that doc:name="Assert that" doc:id="7a0a5664-1b13-4981-afa9-3c039b471a09" expression="#[payload]" is="#[MunitTools::notNullValue()]"/>
+        </munit:validation>
+    </munit:test>
+<munit:test name="api-main-exception-test"
+		doc:id="a8bf11d8-fe03-463e-803c-875a4d88891b" expectedErrorType="ANY">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock when"
+				doc:id="e508f891-86a1-4bdd-ab79-b4a12aa454b9" processor="http:listener">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="HTTP_Listener_config_domain_project" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:error typeId="HTTP:CONNECTIVITY" />
+				</munit-tools:then-return>
+</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+		<set-payload value='#[output application/json
+&#10;---
+&#10;{
+&#10;  "x_correlation_id" : "7ff44dd0-b9ad-11eb-bb16-000d3a15841d",
+&#10;  "target_app" : "TRAVERSE-SYSTEM",
+&#10;  "lastrun_timestamp" : "",
+&#10;  "subscription_type" : "FULL",
+&#10;  "job_id": "caf2edb1-68bf-4e7f-9d28-1f251fb73703",
+&#10;   "file_path": "//corp.acme.com/prodfs/Finance/test/Data/Finance/Supermarket/Master Data/Outbound"
+&#10;}]' doc:name="Set Payload" doc:id="89d96a33-356b-4356-8aa8-494a290be7bf" />
+			<flow-ref doc:name="parking-system-api-main" doc:id="975d7452-9060-4e20-a9c2-09fed92b2c3d" name="parking-system-api-main" />
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:verify-call doc:name="Verify call process error" doc:id="59519b12-ea77-4d64-9ddb-d24962ab8e72" processor="error-handler-plugin:on-error">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="Process Error" attributeName="doc:name" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+		</munit:validation>
+</munit:test>
+</mule>
