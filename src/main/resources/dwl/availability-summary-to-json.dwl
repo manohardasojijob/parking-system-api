@@ -2,7 +2,7 @@
 output application/json
 ---
 {
-  lotId: attributes.uriParams.lotId,
+  lotId: vars.lotId,
   available: (payload filter ($.status == "AVAILABLE"))[0].cnt default 0,
   occupied: (payload filter ($.status == "OCCUPIED"))[0].cnt default 0,
   reserved: (payload filter ($.status == "RESERVED"))[0].cnt default 0,

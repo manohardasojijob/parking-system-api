@@ -22,7 +22,12 @@ httpsRequest:
   clientId: "replace with actual values"
   clientSecret: "replace with actual values"
         
-mq:
-  clientId: "replace with actual values"
-  clientSecret: "replace with actual values"
+# Azure SQL (Parking System API) - override sql.password in CloudHub/Anypoint per environment
+sql:
+  driverClassName: "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+  host: "parking-sql-dev-73b543.database.windows.net"
+  port: "1433"
+  database: "parking-db"
+  user: "parkingadmin"
+  password: "P@rk1ng#Admin$2026!Secure"
   

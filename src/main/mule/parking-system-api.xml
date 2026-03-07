@@ -144,7 +144,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /zones/{zoneId} -->
-    <flow name="get:\zones\zoneId:parking-system-api-config">
+    <flow name="get:\zones\(zoneId):parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get zone by id">
             <db:sql><![CDATA[SELECT * FROM parking_zones WHERE zone_id = CAST(:zoneId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ zoneId: attributes.uriParams.zoneId }]]]></db:input-parameters>
@@ -163,7 +163,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /zones/{zoneId}/lots -->
-    <flow name="get:\zones\zoneId\lots:parking-system-api-config">
+    <flow name="get:\zones\(zoneId)\lots:parking-system-api-config">
         <set-variable value="50" variableName="defaultLimit" doc:name="Default limit" />
         <ee:transform doc:name="Pagination params">
             <ee:variables>
@@ -214,7 +214,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /lots/{lotId} -->
-    <flow name="get:\lots\lotId:parking-system-api-config">
+    <flow name="get:\lots\(lotId):parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get lot by id">
             <db:sql><![CDATA[SELECT * FROM parking_lots WHERE lot_id = CAST(:lotId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ lotId: attributes.uriParams.lotId }]]]></db:input-parameters>
@@ -233,7 +233,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /lots/{lotId}/slots -->
-    <flow name="get:\lots\lotId\slots:parking-system-api-config">
+    <flow name="get:\lots\(lotId)\slots:parking-system-api-config">
         <set-variable value="100" variableName="defaultLimit" doc:name="Default limit (slots)" />
         <ee:transform doc:name="Pagination params">
             <ee:variables>
@@ -259,8 +259,18 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /lots/{lotId}/availability -->
-    <flow name="get:\lots\lotId\availability:parking-system-api-config">
-        <db:select config-ref="AzureSQL_Config" doc:name="Availability by status">
+    <flow name="get:\lots\(lotId)\availability:parking-system-api-config">
+        <ee:transform doc:name="Params" doc:id="287557b5-c7cb-4186-971e-e2e1cd04091d" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="lotId" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.lotId]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<db:select config-ref="AzureSQL_Config" doc:name="Availability by status">
             <db:sql><![CDATA[SELECT status, COUNT(*) AS cnt FROM parking_slots WHERE lot_id = CAST(:lotId AS UNIQUEIDENTIFIER) GROUP BY status]]></db:sql>
             <db:input-parameters><![CDATA[#[{ lotId: attributes.uriParams.lotId }]]]></db:input-parameters>
         </db:select>
@@ -270,7 +280,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /slots/{slotId} -->
-    <flow name="get:\slots\slotId:parking-system-api-config">
+    <flow name="get:\slots\(slotId):parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get slot by id">
             <db:sql><![CDATA[SELECT * FROM parking_slots WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ slotId: attributes.uriParams.slotId }]]]></db:input-parameters>
@@ -289,7 +299,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- PATCH /slots/{slotId} - body: status, eventSource?, eventId? -->
-    <flow name="patch:\slots\slotId:parking-system-api-config">
+    <flow name="patch:\slots\(slotId):parking-system-api-config">
         <set-variable value="#[payload]" variableName="patchBody" doc:name="Store request body" />
         <choice doc:name="Validate status (allowlist to prevent injection)">
             <when expression="#[vars.patchBody == null or (vars.patchBody.status default '') == '' or !(['AVAILABLE','OCCUPIED','RESERVED','MAINTENANCE','OFFLINE'] contains (vars.patchBody.status default ''))]">
@@ -386,7 +396,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /holds/{holdId} -->
-    <flow name="get:\holds\holdId:parking-system-api-config">
+    <flow name="get:\holds\(holdId):parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get hold">
             <db:sql><![CDATA[SELECT * FROM holds WHERE hold_id = CAST(:holdId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ holdId: attributes.uriParams.holdId }]]]></db:input-parameters>
@@ -405,7 +415,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- DELETE /holds/{holdId} -->
-    <flow name="delete:\holds\holdId:parking-system-api-config">
+    <flow name="delete:\holds\(holdId):parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get hold">
             <db:sql><![CDATA[SELECT * FROM holds WHERE hold_id = CAST(:holdId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ holdId: attributes.uriParams.holdId }]]]></db:input-parameters>
@@ -515,7 +525,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- GET /reservations/{reservationId} -->
-    <flow name="get:\reservations\reservationId:parking-system-api-config">
+    <flow name="get:\reservations\(reservationId):parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get reservation">
             <db:sql><![CDATA[SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ reservationId: attributes.uriParams.reservationId }]]]></db:input-parameters>
@@ -534,7 +544,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- PATCH /reservations/{reservationId} -->
-    <flow name="patch:\reservations\reservationId:parking-system-api-config">
+    <flow name="patch:\reservations\(reservationId):parking-system-api-config">
         <set-variable value="#[payload]" variableName="patchResBody" doc:name="Store request body" />
         <choice doc:name="Validate status and paymentStatus (allowlist)">
             <when expression="#[vars.patchResBody == null or ((vars.patchResBody.status default '') != '' and !(['PENDING','CONFIRMED','ACTIVE','COMPLETED','CANCELLED','NO_SHOW'] contains (vars.patchResBody.status default ''))) or ((vars.patchResBody.paymentStatus default '') != '' and !(['PENDING','PAID','REFUNDED','FAILED'] contains (vars.patchResBody.paymentStatus default '')))]">
@@ -574,7 +584,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- POST /reservations/{reservationId}/confirm -->
-    <flow name="post:\reservations\reservationId\confirm:parking-system-api-config">
+    <flow name="post:\reservations\(reservationId)\confirm:parking-system-api-config">
         <db:update config-ref="AzureSQL_Config" doc:name="Confirm reservation">
             <db:sql><![CDATA[UPDATE reservations SET status = 'CONFIRMED', updated_at = GETUTCDATE() WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ reservationId: attributes.uriParams.reservationId }]]]></db:input-parameters>
@@ -597,7 +607,7 @@ var offset = (attributes.queryParams.offset default 0) as Number
     </flow>
 
     <!-- POST /reservations/{reservationId}/cancel -->
-    <flow name="post:\reservations\reservationId\cancel:parking-system-api-config">
+    <flow name="post:\reservations\(reservationId)\cancel:parking-system-api-config">
         <db:select config-ref="AzureSQL_Config" doc:name="Get reservation">
             <db:sql><![CDATA[SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)]]></db:sql>
             <db:input-parameters><![CDATA[#[{ reservationId: attributes.uriParams.reservationId }]]]></db:input-parameters>
