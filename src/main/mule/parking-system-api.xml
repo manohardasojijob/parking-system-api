@@ -15,7 +15,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
             password="${sql.password}" />
     </db:config>
     <flow name="parking-system-api-main">
-        <http:listener config-ref="parking-system-api-httpListenerConfig" path="/api/*">
+        <http:listener config-ref="parking-system-api-httpListenerConfig" path="${api.path}">
             <http:response statusCode="#[vars.httpStatus default 200]" />
             <http:error-response statusCode="#[vars.httpStatus default 500]">
                 <http:body><![CDATA[#[payload]]]></http:body>

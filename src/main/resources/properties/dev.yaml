@@ -3,7 +3,7 @@ api:
   #API Configurations
   name: "${project.name}"
   version: "${api.version}"
-  path: /api/*
+  path: /api/v1/*
   
 http:
   private:
