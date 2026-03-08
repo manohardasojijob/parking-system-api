@@ -1,0 +1,604 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+	<flow name="impl-get-health" doc:name="impl-get-health">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<ee:transform doc:name="Set varVerboseFlag" doc:id="0481b5a8-838f-407f-bfe2-94457ca334d3">
+			<ee:message />
+			<ee:variables>
+				<ee:set-variable resource="dwl/healthcheck-getVerboseFlag.dwl" variableName="varVerboseFlag" />
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="mode?" doc:id="76355a66-eab9-4192-ae61-d977585f6579">
+			<when expression="#[vars.varVerboseFlag]">
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="Verbose response payload" doc:id="4cd2031c-5220-46b9-b395-8d4af6ffb761">
+					<ee:message>
+						<ee:set-payload resource="dwl/healthcheck-setVerboseResponse.dwl" />
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="Default response payload" doc:id="ea164f9e-be61-4778-a209-47bca91b3b32">
+					<ee:message>
+						<ee:set-payload resource="dwl/healthcheck-setBasicResponse.dwl" />
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-get-health-ready" doc:name="impl-get-health-ready">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT 1 AS ok" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{}]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="Ready 200">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ status: "Ready", database: "connected" }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler>
+			<on-error-continue enableNotifications="true" logException="true">
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<set-variable value="Database unavailable" variableName="errorMessage" doc:name="Set error message" />
+				<set-variable value="DB_CONNECTIVITY" variableName="errorCode" doc:name="Set error code" />
+				<ee:transform doc:name="Error response (503)">
+					<ee:message><ee:set-payload resource="dwl/error-response.dwl" /></ee:message>
+					<ee:variables><ee:set-variable variableName="httpStatus">503</ee:set-variable></ee:variables>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+
+	<flow name="impl-get-zones" doc:name="impl-get-zones">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="50" variableName="defaultLimit" doc:name="Default limit" />
+		<ee:transform doc:name="Pagination params">
+			<ee:variables>
+				<ee:set-variable variableName="paginationParams"><![CDATA[%dw 2.0
+output application/json
+
+var limit = (attributes.queryParams.limit default vars.defaultLimit default 50) as Number
+var offset = (attributes.queryParams.offset default 0) as Number
+--- 
+{
+  limit: max([100,limit ]),
+  offset: min([0, offset])
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="SELECT * FROM parking_zones WHERE (CAST(:city AS NVARCHAR(50)) IS NULL OR city = :city) ORDER BY zone_name OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{
+                city: attributes.queryParams.city,
+                offset: vars.paginationParams.offset,
+                limit: vars.paginationParams.limit
+            }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="To ZoneList JSON">
+			<ee:message><ee:set-payload resource="dwl/zone-list-to-json.dwl" /></ee:message>
+		</ee:transform>
+	</flow>
+
+	<flow name="impl-get-zone-by-id" doc:name="impl-get-zone-by-id">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM parking_zones WHERE zone_id = CAST(:zoneId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ zoneId: attributes.uriParams.zoneId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Zone not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Zone JSON">
+					<ee:message><ee:set-payload resource="dwl/zone-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-get-zone-lots" doc:name="impl-get-zone-lots">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="50" variableName="defaultLimit" doc:name="Default limit" />
+		<ee:transform doc:name="Pagination params">
+			<ee:variables>
+				<ee:set-variable variableName="paginationParams"><![CDATA[#[output application/java --- {
+  limit: min([100, max([1, (attributes.queryParams.limit default vars.defaultLimit default 50) as Number])]),
+  offset: max([0, (attributes.queryParams.offset default 0) as Number])
+}]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="SELECT * FROM parking_lots WHERE zone_id = CAST(:zoneId AS UNIQUEIDENTIFIER) AND (CAST(:isActive AS BIT) IS NULL OR is_active = :isActive) AND (CAST(:lotType AS NVARCHAR(20)) IS NULL OR lot_type = :lotType) ORDER BY lot_name OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{
+                zoneId: attributes.uriParams.zoneId,
+                isActive: if (attributes.queryParams.isActive != null) (attributes.queryParams.isActive == 'true') else null,
+                lotType: attributes.queryParams.lotType,
+                offset: vars.paginationParams.offset,
+                limit: vars.paginationParams.limit
+            }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="To LotList JSON">
+			<ee:message><ee:set-payload resource="dwl/lot-list-to-json.dwl" /></ee:message>
+		</ee:transform>
+	</flow>
+
+	<flow name="impl-get-lots" doc:name="impl-get-lots">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="50" variableName="defaultLimit" doc:name="Default limit" />
+		<ee:transform doc:name="Pagination params">
+			<ee:variables>
+				<ee:set-variable variableName="paginationParams"><![CDATA[#[output application/java --- {
+  limit: min([100, max([1, (attributes.queryParams.limit default vars.defaultLimit default 50) as Number])]),
+  offset: max([0, (attributes.queryParams.offset default 0) as Number])
+}]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="SELECT pl.* FROM parking_lots pl LEFT JOIN parking_zones pz ON pl.zone_id = pz.zone_id WHERE (CAST(:zoneCode AS NVARCHAR(20)) IS NULL OR pz.zone_code = :zoneCode) AND (CAST(:city AS NVARCHAR(50)) IS NULL OR pz.city = :city) ORDER BY pl.lot_name OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{
+                zoneCode: attributes.queryParams.zoneCode,
+                city: attributes.queryParams.city,
+                offset: vars.paginationParams.offset,
+                limit: vars.paginationParams.limit
+            }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="To LotList JSON">
+			<ee:message><ee:set-payload resource="dwl/lot-list-to-json.dwl" /></ee:message>
+		</ee:transform>
+	</flow>
+
+	<flow name="impl-get-lot-by-id" doc:name="impl-get-lot-by-id">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM parking_lots WHERE lot_id = CAST(:lotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ lotId: attributes.uriParams.lotId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Lot not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Lot JSON">
+					<ee:message><ee:set-payload resource="dwl/lot-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-get-lot-slots" doc:name="impl-get-lot-slots">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="100" variableName="defaultLimit" doc:name="Default limit (slots)" />
+		<ee:transform doc:name="Pagination params">
+			<ee:variables>
+				<ee:set-variable variableName="paginationParams"><![CDATA[#[output application/java --- {
+  limit: min([100, max([1, (attributes.queryParams.limit default vars.defaultLimit default 50) as Number])]),
+  offset: max([0, (attributes.queryParams.offset default 0) as Number])
+}]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="SELECT * FROM parking_slots WHERE lot_id = CAST(:lotId AS UNIQUEIDENTIFIER) AND (CAST(:status AS NVARCHAR(20)) IS NULL OR status = :status) AND (CAST(:slotType AS NVARCHAR(20)) IS NULL OR slot_type = :slotType) ORDER BY slot_number OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{
+                lotId: attributes.uriParams.lotId,
+                status: attributes.queryParams.status,
+                slotType: attributes.queryParams.slotType,
+                offset: vars.paginationParams.offset,
+                limit: vars.paginationParams.limit
+            }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="To SlotList JSON">
+			<ee:message><ee:set-payload resource="dwl/slot-list-to-json.dwl" /></ee:message>
+		</ee:transform>
+	</flow>
+
+	<flow name="impl-get-lot-availability" doc:name="impl-get-lot-availability">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<ee:transform doc:name="Params" doc:id="287557b5-c7cb-4186-971e-e2e1cd04091d" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="lotId" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.lotId]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="SELECT status, COUNT(*) AS cnt FROM parking_slots WHERE lot_id = CAST(:lotId AS UNIQUEIDENTIFIER) GROUP BY status" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ lotId: attributes.uriParams.lotId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="To AvailabilitySummary">
+			<ee:message><ee:set-payload resource="dwl/availability-summary-to-json.dwl" /></ee:message>
+		</ee:transform>
+	</flow>
+
+	<flow name="impl-get-slot-by-id" doc:name="impl-get-slot-by-id">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM parking_slots WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ slotId: attributes.uriParams.slotId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Slot not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Slot JSON">
+					<ee:message><ee:set-payload resource="dwl/slot-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-patch-slot" doc:name="impl-patch-slot">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="#[attributes.uriParams.slotId]" variableName="slotId" doc:name="Capture path param (persists after connector calls)" />
+		<set-variable value="#[payload]" variableName="patchBody" doc:name="Store request body" />
+		<choice doc:name="Validate status (allowlist to prevent injection)">
+			<when expression="#[vars.patchBody == null or (vars.patchBody.status default '') == '' or !(['AVAILABLE','OCCUPIED','RESERVED','MAINTENANCE','OFFLINE'] contains (vars.patchBody.status default ''))]">
+				<set-variable value="Invalid status. Allowed: AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE, OFFLINE" variableName="errorMessage" doc:name="Set error message" />
+				<set-variable value="VALIDATION" variableName="errorCode" doc:name="Set error code" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="bad-request" doc:name="bad-request" />
+			</when>
+			<otherwise>
+				<set-variable value="SELECT * FROM parking_slots WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ slotId: vars.slotId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-select" doc:name="db-select" />
+				<choice doc:name="Slot found?">
+					<when expression="#[sizeOf(payload) == 0]">
+						<set-variable value="Slot not found" variableName="errorMessage" doc:name="Set error message" />
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<flow-ref name="not-found" doc:name="not-found" />
+					</when>
+					<otherwise>
+						<ee:transform doc:name="Set previousStatus">
+							<ee:variables>
+								<ee:set-variable variableName="previousStatus">payload[0].status</ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<set-variable value="UPDATE parking_slots SET status = :status, last_status_change = GETUTCDATE(), updated_at = GETUTCDATE() WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{
+                                status: vars.patchBody.status,
+                                slotId: vars.slotId
+                            }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-update" doc:name="db-update" />
+						<set-variable value="INSERT INTO slot_status_history (slot_id, previous_status, new_status, event_source, event_id) VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), :previousStatus, :newStatus, :eventSource, :eventId)" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{
+                                slotId: vars.slotId,
+                                previousStatus: vars.previousStatus,
+                                newStatus: vars.patchBody.status,
+                                eventSource: vars.patchBody.eventSource default null,
+                                eventId: vars.patchBody.eventId default null
+                            }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-insert" doc:name="db-insert" />
+						<set-variable value="SELECT * FROM parking_slots WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{ slotId: vars.slotId }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-select" doc:name="db-select" />
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<ee:transform doc:name="To Slot JSON">
+							<ee:message><ee:set-payload resource="dwl/slot-to-json.dwl" /></ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-post-holds" doc:name="impl-post-holds">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="#[payload]" variableName="holdRequest" doc:name="Store request body" />
+		<choice doc:name="Validate request">
+			<when expression="#[vars.holdRequest == null or vars.holdRequest.slotId == null or vars.holdRequest.userId == null or vars.holdRequest.holdExpiryMinutes == null or (vars.holdRequest.holdExpiryMinutes as Number) &lt; 1 or (vars.holdRequest.holdExpiryMinutes as Number) &gt; 120]">
+				<set-variable value="Missing or invalid fields: slotId, userId, holdExpiryMinutes (1-120 required)" variableName="errorMessage" doc:name="Set error message" />
+				<set-variable value="VALIDATION" variableName="errorCode" doc:name="Set error code" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="bad-request" doc:name="bad-request" />
+			</when>
+			<otherwise>
+				<set-variable value="SELECT * FROM parking_slots WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER) AND status = 'AVAILABLE'" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ slotId: vars.holdRequest.slotId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-select" doc:name="db-select" />
+				<choice doc:name="Available?">
+					<when expression="#[sizeOf(payload) == 0]">
+						<set-variable value="Slot not available or not found" variableName="errorMessage" doc:name="Set error message" />
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<flow-ref name="conflict" doc:name="conflict" />
+					</when>
+					<otherwise>
+						<set-variable value="INSERT INTO holds (slot_id, user_id, hold_expiry) OUTPUT INSERTED.hold_id, INSERTED.slot_id, INSERTED.user_id, INSERTED.hold_start, INSERTED.hold_expiry, INSERTED.status, INSERTED.created_at VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), CAST(:userId AS UNIQUEIDENTIFIER), DATEADD(MINUTE, :holdExpiryMinutes, GETUTCDATE()))" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{
+                                slotId: vars.holdRequest.slotId,
+                                userId: vars.holdRequest.userId,
+                                holdExpiryMinutes: vars.holdRequest.holdExpiryMinutes as Number
+                            }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-insert" doc:name="db-insert" />
+						<set-variable value="#[payload]" variableName="insertedHold" doc:name="Store insert result (payload is overwritten by next connector)" />
+						<set-variable value="UPDATE parking_slots SET status = 'RESERVED', updated_at = GETUTCDATE() WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{ slotId: vars.holdRequest.slotId }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-update" doc:name="db-update" />
+						<ee:transform doc:name="Restore inserted hold as payload for DWL">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+if (vars.insertedHold is Array) vars.insertedHold else [vars.insertedHold]]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<ee:transform doc:name="To Hold JSON and 201">
+							<ee:message><ee:set-payload resource="dwl/hold-to-json.dwl" /></ee:message>
+							<ee:variables><ee:set-variable variableName="httpStatus">201</ee:set-variable></ee:variables>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-get-hold-by-id" doc:name="impl-get-hold-by-id">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM holds WHERE hold_id = CAST(:holdId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ holdId: attributes.uriParams.holdId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Hold not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Hold JSON">
+					<ee:message><ee:set-payload resource="dwl/hold-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-delete-hold" doc:name="impl-delete-hold">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM holds WHERE hold_id = CAST(:holdId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ holdId: attributes.uriParams.holdId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Hold not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<set-variable value="#[payload[0].slot_id]" variableName="releasedSlotId" doc:name="slotId" />
+				<set-variable value="UPDATE holds SET status = 'RELEASED' WHERE hold_id = CAST(:holdId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ holdId: attributes.uriParams.holdId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-update" doc:name="db-update" />
+				<set-variable value="UPDATE parking_slots SET status = 'AVAILABLE', updated_at = GETUTCDATE() WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER) AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.slot_id = parking_slots.slot_id AND r.status IN ('PENDING', 'CONFIRMED', 'ACTIVE'))" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ slotId: vars.releasedSlotId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-update" doc:name="db-update" />
+				<set-variable value="SELECT * FROM holds WHERE hold_id = CAST(:holdId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ holdId: attributes.uriParams.holdId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-select" doc:name="db-select" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Hold JSON">
+					<ee:message><ee:set-payload resource="dwl/hold-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-get-reservations" doc:name="impl-get-reservations">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="50" variableName="defaultLimit" doc:name="Default limit" />
+		<ee:transform doc:name="Pagination params">
+			<ee:variables>
+				<ee:set-variable variableName="paginationParams"><![CDATA[#[output application/java --- {
+  limit: min([100, max([1, (attributes.queryParams.limit default vars.defaultLimit default 50) as Number])]),
+  offset: max([0, (attributes.queryParams.offset default 0) as Number])
+}]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="SELECT * FROM reservations WHERE (CAST(:userId AS UNIQUEIDENTIFIER) IS NULL OR user_id = CAST(:userId AS UNIQUEIDENTIFIER)) AND (CAST(:status AS NVARCHAR(20)) IS NULL OR status = :status) ORDER BY created_at DESC OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{
+                userId: attributes.queryParams.userId,
+                status: attributes.queryParams.status,
+                offset: vars.paginationParams.offset,
+                limit: vars.paginationParams.limit
+            }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+		<ee:transform doc:name="To ReservationList JSON">
+			<ee:message><ee:set-payload resource="dwl/reservation-list-to-json.dwl" /></ee:message>
+		</ee:transform>
+	</flow>
+
+	<flow name="impl-post-reservations" doc:name="impl-post-reservations">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="#[payload]" variableName="resRequest" doc:name="Store request body" />
+		<choice doc:name="Validate request">
+			<when expression="#[vars.resRequest == null or vars.resRequest.slotId == null or vars.resRequest.userId == null or vars.resRequest.vehicleNumber == null or vars.resRequest.vehicleType == null or vars.resRequest.startTime == null or vars.resRequest.endTime == null]">
+				<set-variable value="Missing required fields: slotId, userId, vehicleNumber, vehicleType, startTime, endTime" variableName="errorMessage" doc:name="Set error message" />
+				<set-variable value="VALIDATION" variableName="errorCode" doc:name="Set error code" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="bad-request" doc:name="bad-request" />
+			</when>
+			<otherwise>
+				<set-variable value="SELECT slot_id, status FROM parking_slots WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ slotId: vars.resRequest.slotId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-select" doc:name="db-select" />
+				<choice doc:name="Slot exists and reservable?">
+					<when expression="#[sizeOf(payload) == 0 or !(['AVAILABLE','RESERVED'] contains (payload[0].status default ''))]">
+						<set-variable value="Slot not available for reservation" variableName="errorMessage" doc:name="Set error message" />
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<flow-ref name="conflict" doc:name="conflict" />
+					</when>
+					<otherwise>
+						<set-variable value="SELECT 1 AS overlap FROM reservations WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER) AND status IN ('PENDING','CONFIRMED','ACTIVE') AND (start_time &lt; CAST(:endTime AS DATETIME2) AND end_time &gt; CAST(:startTime AS DATETIME2))" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{ slotId: vars.resRequest.slotId, startTime: vars.resRequest.startTime, endTime: vars.resRequest.endTime }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-select" doc:name="db-select" />
+						<choice doc:name="Overlap?">
+							<when expression="#[sizeOf(payload) > 0]">
+								<set-variable value="Slot already reserved for overlapping time" variableName="errorMessage" doc:name="Set error message" />
+								<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+								<flow-ref name="conflict" doc:name="conflict" />
+							</when>
+							<otherwise>
+								<set-variable value="INSERT INTO reservations (slot_id, user_id, vehicle_number, vehicle_type, start_time, end_time) OUTPUT INSERTED.reservation_id, INSERTED.slot_id, INSERTED.user_id, INSERTED.vehicle_number, INSERTED.vehicle_type, INSERTED.start_time, INSERTED.end_time, INSERTED.status, INSERTED.payment_status, INSERTED.created_at, INSERTED.updated_at VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), CAST(:userId AS UNIQUEIDENTIFIER), :vehicleNumber, :vehicleType, CAST(:startTime AS DATETIME2), CAST(:endTime AS DATETIME2))" variableName="dbSql" doc:name="Set SQL" />
+								<set-variable value="#[{
+                                        slotId: vars.resRequest.slotId,
+                                        userId: vars.resRequest.userId,
+                                        vehicleNumber: vars.resRequest.vehicleNumber,
+                                        vehicleType: vars.resRequest.vehicleType,
+                                        startTime: vars.resRequest.startTime,
+                                        endTime: vars.resRequest.endTime
+                                    }]" variableName="dbParams" doc:name="Set params" />
+								<flow-ref name="db-insert" doc:name="db-insert" />
+								<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+								<ee:transform doc:name="To Reservation JSON and 201">
+									<ee:message><ee:set-payload resource="dwl/reservation-to-json.dwl" /></ee:message>
+									<ee:variables><ee:set-variable variableName="httpStatus">201</ee:set-variable></ee:variables>
+								</ee:transform>
+							</otherwise>
+						</choice>
+					</otherwise>
+				</choice>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-get-reservation-by-id" doc:name="impl-get-reservation-by-id">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ reservationId: attributes.uriParams.reservationId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Reservation not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Reservation JSON">
+					<ee:message><ee:set-payload resource="dwl/reservation-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-patch-reservation" doc:name="impl-patch-reservation">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="#[attributes.uriParams.reservationId]" variableName="reservationId" doc:name="Capture path param" />
+		<set-variable value="#[payload]" variableName="patchResBody" doc:name="Store request body" />
+		<set-variable value="SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ reservationId: vars.reservationId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Reservation found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Reservation not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<choice doc:name="Validate status and paymentStatus (allowlist)">
+					<when expression="#[vars.patchResBody == null or ((vars.patchResBody.status default '') != '' and !(['PENDING','CONFIRMED','ACTIVE','COMPLETED','CANCELLED','NO_SHOW'] contains (vars.patchResBody.status default ''))) or ((vars.patchResBody.paymentStatus default '') != '' and !(['PENDING','PAID','REFUNDED','FAILED'] contains (vars.patchResBody.paymentStatus default '')))]">
+						<set-variable value="Invalid status or paymentStatus. status: PENDING, CONFIRMED, ACTIVE, COMPLETED, CANCELLED, NO_SHOW; paymentStatus: PENDING, PAID, REFUNDED, FAILED" variableName="errorMessage" doc:name="Set error message" />
+						<set-variable value="VALIDATION" variableName="errorCode" doc:name="Set error code" />
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<flow-ref name="bad-request" doc:name="bad-request" />
+					</when>
+					<otherwise>
+						<set-variable value="UPDATE reservations SET status = COALESCE(:status, status), actual_entry_time = COALESCE(CAST(:actualEntryTime AS DATETIME2), actual_entry_time), actual_exit_time = COALESCE(CAST(:actualExitTime AS DATETIME2), actual_exit_time), amount_inr = COALESCE(:amountInr, amount_inr), payment_status = COALESCE(:paymentStatus, payment_status), updated_at = GETUTCDATE() WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{
+                                reservationId: vars.reservationId,
+                                status: vars.patchResBody.status,
+                                actualEntryTime: vars.patchResBody.actualEntryTime,
+                                actualExitTime: vars.patchResBody.actualExitTime,
+                                amountInr: vars.patchResBody.amountInr,
+                                paymentStatus: vars.patchResBody.paymentStatus
+                            }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-update" doc:name="db-update" />
+						<set-variable value="SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+						<set-variable value="#[{ reservationId: vars.reservationId }]" variableName="dbParams" doc:name="Set params" />
+						<flow-ref name="db-select" doc:name="db-select" />
+						<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+						<ee:transform doc:name="To Reservation JSON">
+							<ee:message><ee:set-payload resource="dwl/reservation-to-json.dwl" /></ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-post-reservation-confirm" doc:name="impl-post-reservation-confirm">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="UPDATE reservations SET status = 'CONFIRMED', updated_at = GETUTCDATE() WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ reservationId: attributes.uriParams.reservationId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-update" doc:name="db-update" />
+		<set-variable value="SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ reservationId: attributes.uriParams.reservationId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Reservation not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Reservation JSON">
+					<ee:message><ee:set-payload resource="dwl/reservation-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+
+	<flow name="impl-post-reservation-cancel" doc:name="impl-post-reservation-cancel">
+		<flow-ref name="log-flow-start" doc:name="log-flow-start" />
+		<set-variable value="SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+		<set-variable value="#[{ reservationId: attributes.uriParams.reservationId }]" variableName="dbParams" doc:name="Set params" />
+		<flow-ref name="db-select" doc:name="db-select" />
+		<choice doc:name="Found?">
+			<when expression="#[sizeOf(payload) == 0]">
+				<set-variable value="Reservation not found" variableName="errorMessage" doc:name="Set error message" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<flow-ref name="not-found" doc:name="not-found" />
+			</when>
+			<otherwise>
+				<set-variable value="#[payload[0].slot_id]" variableName="slotIdVar" doc:name="slotId" />
+				<set-variable value="UPDATE reservations SET status = 'CANCELLED', updated_at = GETUTCDATE() WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ reservationId: attributes.uriParams.reservationId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-update" doc:name="db-update" />
+				<set-variable value="UPDATE parking_slots SET status = 'AVAILABLE', updated_at = GETUTCDATE() WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ slotId: vars.slotIdVar }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-update" doc:name="db-update" />
+				<set-variable value="SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)" variableName="dbSql" doc:name="Set SQL" />
+				<set-variable value="#[{ reservationId: attributes.uriParams.reservationId }]" variableName="dbParams" doc:name="Set params" />
+				<flow-ref name="db-select" doc:name="db-select" />
+				<flow-ref name="log-flow-end" doc:name="log-flow-end" />
+				<ee:transform doc:name="To Reservation JSON">
+					<ee:message><ee:set-payload resource="dwl/reservation-to-json.dwl" /></ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
