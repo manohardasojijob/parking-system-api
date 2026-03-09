@@ -777,14 +777,10 @@ output application/java
 			</ee:variables>
 		</ee:transform>
 		<flow-ref name="db-update" doc:name="db-update" />
-		<ee:transform doc:name="Set dbSql and dbParams (select)">
+		<ee:transform doc:name="Set dbSql and dbParams (select)" doc:id="373ed37a-6760-46e4-82a5-430397be97e9">
 			<ee:message />
 			<ee:variables>
 				<ee:set-variable variableName="dbSql"><![CDATA["SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)"]]></ee:set-variable>
-				<ee:set-variable variableName="dbParams"><![CDATA[%dw 2.0
-output application/java
----
-{ reservationId: attributes.uriParams.reservationId }]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<flow-ref name="db-select" doc:name="db-select" />
@@ -813,6 +809,10 @@ output application/java
 output application/java
 ---
 { reservationId: attributes.uriParams.reservationId }]]></ee:set-variable>
+				<ee:set-variable variableName="reservationId" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.reservationId]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<flow-ref name="db-select" doc:name="db-select" />
@@ -824,14 +824,10 @@ output application/java
 			</when>
 			<otherwise>
 				<set-variable value="#[payload[0].slot_id]" variableName="slotIdVar" doc:name="slotId" />
-				<ee:transform doc:name="Set dbSql and dbParams (cancel reservation)">
+				<ee:transform doc:name="Set dbSql and dbParams (cancel reservation)" doc:id="632a60d3-4f84-4a5d-bf0d-16706062702e">
 					<ee:message />
 					<ee:variables>
 						<ee:set-variable variableName="dbSql"><![CDATA["UPDATE reservations SET status = 'CANCELLED', updated_at = GETUTCDATE() WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)"]]></ee:set-variable>
-						<ee:set-variable variableName="dbParams"><![CDATA[%dw 2.0
-output application/java
----
-{ reservationId: attributes.uriParams.reservationId }]]></ee:set-variable>
 					</ee:variables>
 				</ee:transform>
 				<flow-ref name="db-update" doc:name="db-update" />
@@ -846,14 +842,14 @@ output application/java
 					</ee:variables>
 				</ee:transform>
 				<flow-ref name="db-update" doc:name="db-update" />
-				<ee:transform doc:name="Set dbSql and dbParams (select reservation)">
+				<ee:transform doc:name="Set dbSql and dbParams (select reservation)" doc:id="d159f11b-fb13-488f-b18a-ae05eb289c00">
 					<ee:message />
 					<ee:variables>
 						<ee:set-variable variableName="dbSql"><![CDATA["SELECT * FROM reservations WHERE reservation_id = CAST(:reservationId AS UNIQUEIDENTIFIER)"]]></ee:set-variable>
-						<ee:set-variable variableName="dbParams"><![CDATA[%dw 2.0
+						<ee:set-variable variableName="dbParams" ><![CDATA[%dw 2.0
 output application/java
 ---
-{ reservationId: attributes.uriParams.reservationId }]]></ee:set-variable>
+{ reservationId: vars.reservationId }]]></ee:set-variable>
 					</ee:variables>
 				</ee:transform>
 				<flow-ref name="db-select" doc:name="db-select" />
