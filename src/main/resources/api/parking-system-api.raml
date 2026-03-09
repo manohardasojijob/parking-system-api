@@ -4,140 +4,12 @@ version: v1
 baseUri: /api/v1
 mediaType: application/json
 
-types:
-  Zone:
-    type: object
-    properties:
-      zoneId: string
-      zoneName: string
-      zoneCode: string
-      city: string
-      state: string
-      latitude: number
-      longitude: number
-      createdAt?: string
-      updatedAt?: string
-  ZoneList:
-    type: object
-    properties:
-      zones: Zone[]
-      total?: number
-  Lot:
-    type: object
-    properties:
-      lotId: string
-      zoneId: string
-      lotName: string
-      lotCode: string
-      address: string
-      latitude: number
-      longitude: number
-      totalSlots: number
-      hourlyRateInr: number
-      dailyMaxInr?: number
-      operatingHours?: string
-      lotType: string
-      isActive: boolean
-      createdAt?: string
-      updatedAt?: string
-  LotList:
-    type: object
-    properties:
-      lots: Lot[]
-      total?: number
-  Slot:
-    type: object
-    properties:
-      slotId: string
-      lotId: string
-      slotNumber: string
-      floorLevel?: string
-      slotType: string
-      sensorId?: string
-      status: string
-      lastStatusChange?: string
-      createdAt?: string
-      updatedAt?: string
-  SlotList:
-    type: object
-    properties:
-      slots: Slot[]
-      total?: number
-  AvailabilitySummary:
-    type: object
-    properties:
-      lotId: string
-      available: number
-      occupied: number
-      reserved: number
-      maintenance: number
-      offline: number
-  SlotStatusUpdate:
-    type: object
-    properties:
-      status: string
-      eventSource?: string
-      eventId?: string
-  HoldRequest:
-    type: object
-    properties:
-      slotId: string
-      userId: string
-      holdExpiryMinutes: number
-  Hold:
-    type: object
-    properties:
-      holdId: string
-      slotId: string
-      userId: string
-      holdStart: string
-      holdExpiry: string
-      status: string
-      createdAt?: string
-  ReservationRequest:
-    type: object
-    properties:
-      slotId: string
-      userId: string
-      vehicleNumber: string
-      vehicleType: string
-      startTime: string
-      endTime: string
-  ReservationUpdate:
-    type: object
-    properties:
-      status?: string
-      actualEntryTime?: string
-      actualExitTime?: string
-      amountInr?: number
-      paymentStatus?: string
-  Reservation:
-    type: object
-    properties:
-      reservationId: string
-      slotId: string
-      userId: string
-      vehicleNumber: string
-      vehicleType: string
-      startTime: string
-      endTime: string
-      actualEntryTime?: string
-      actualExitTime?: string
-      status: string
-      amountInr?: number
-      paymentStatus?: string
-      createdAt?: string
-      updatedAt?: string
-  ReservationList:
-    type: object
-    properties:
-      reservations: Reservation[]
-      total?: number
-  Error:
-    type: object
-    properties:
-      message: string
-      code?: string
+uses:
+  parkingTypes: datatypes.raml
+  traitsLib: traits.raml
+  apiSecurity: security.raml
+
+securedBy: [ apiSecurity.clientEnforcement ]
 
 /health:
   get:
@@ -155,16 +27,13 @@ types:
 /health/ready:
   get:
     description: Readiness check (includes DB connectivity).
+    is: [ traitsLib.Error503 ]
     responses:
       200:
         body:
           application/json:
             example:
               { "status": "Ready", "database": "connected" }
-      503:
-        body:
-          application/json:
-            type: Error
 
 /zones:
   get:
@@ -185,19 +54,16 @@ types:
       200:
         body:
           application/json:
-            type: ZoneList
+            type: parkingTypes.ZoneList
   /{zoneId}:
     get:
       description: Get zone by ID.
+      is: [ traitsLib.Error404 ]
       responses:
         200:
           body:
             application/json:
-              type: Zone
-        404:
-          body:
-            application/json:
-              type: Error
+              type: parkingTypes.Zone
     /lots:
       get:
         description: List lots in a zone.
@@ -220,7 +86,7 @@ types:
           200:
             body:
               application/json:
-                type: LotList
+                type: parkingTypes.LotList
 
 /lots:
   get:
@@ -244,19 +110,16 @@ types:
       200:
         body:
           application/json:
-            type: LotList
+            type: parkingTypes.LotList
   /{lotId}:
     get:
       description: Get lot by ID.
+      is: [ traitsLib.Error404 ]
       responses:
         200:
           body:
             application/json:
-              type: Lot
-        404:
-          body:
-            application/json:
-              type: Error
+              type: parkingTypes.Lot
     /slots:
       get:
         description: List slots in a lot.
@@ -279,7 +142,7 @@ types:
           200:
             body:
               application/json:
-                type: SlotList
+                type: parkingTypes.SlotList
     /availability:
       get:
         description: Get availability summary for a lot.
@@ -287,77 +150,58 @@ types:
           200:
             body:
               application/json:
-                type: AvailabilitySummary
+                type: parkingTypes.AvailabilitySummary
 
 /slots/{slotId}:
   get:
     description: Get slot by ID.
+    is: [ traitsLib.Error404 ]
     responses:
       200:
         body:
           application/json:
-            type: Slot
-      404:
-        body:
-          application/json:
-            type: Error
+            type: parkingTypes.Slot
   patch:
     description: Update slot status (and record history).
+    is: [ traitsLib.Error404 ]
     body:
       application/json:
-        type: SlotStatusUpdate
+        type: parkingTypes.SlotStatusUpdate
     responses:
       200:
         body:
           application/json:
-            type: Slot
-      404:
-        body:
-          application/json:
-            type: Error
+            type: parkingTypes.Slot
 
 /holds:
   post:
     description: Create a hold on a slot.
+    is: [ traitsLib.Error400, traitsLib.Error409 ]
     body:
       application/json:
-        type: HoldRequest
+        type: parkingTypes.HoldRequest
     responses:
       201:
         body:
           application/json:
-            type: Hold
-      400:
-        body:
-          application/json:
-            type: Error
-      409:
-        body:
-          application/json:
-            type: Error
+            type: parkingTypes.Hold
   /{holdId}:
     get:
       description: Get hold by ID.
+      is: [ traitsLib.Error404 ]
       responses:
         200:
           body:
             application/json:
-              type: Hold
-        404:
-          body:
-            application/json:
-              type: Error
+              type: parkingTypes.Hold
     delete:
       description: Release a hold.
+      is: [ traitsLib.Error404 ]
       responses:
         200:
           body:
             application/json:
-              type: Hold
-        404:
-          body:
-            application/json:
-              type: Error
+              type: parkingTypes.Hold
 
 /reservations:
   get:
@@ -381,72 +225,53 @@ types:
       200:
         body:
           application/json:
-            type: ReservationList
+            type: parkingTypes.ReservationList
   post:
     description: Create a reservation.
+    is: [ traitsLib.Error400, traitsLib.Error409 ]
     body:
       application/json:
-        type: ReservationRequest
+        type: parkingTypes.ReservationRequest
     responses:
       201:
         body:
           application/json:
-            type: Reservation
-      400:
-        body:
-          application/json:
-            type: Error
-      409:
-        body:
-          application/json:
-            type: Error
+            type: parkingTypes.Reservation
   /{reservationId}:
     get:
       description: Get reservation by ID.
+      is: [ traitsLib.Error404 ]
       responses:
         200:
           body:
             application/json:
-              type: Reservation
-        404:
-          body:
-            application/json:
-              type: Error
+              type: parkingTypes.Reservation
     patch:
       description: Update reservation (status, times, amount, payment).
+      is: [ traitsLib.Error404 ]
       body:
         application/json:
-          type: ReservationUpdate
+          type: parkingTypes.ReservationUpdate
       responses:
         200:
           body:
             application/json:
-              type: Reservation
-        404:
-          body:
-            application/json:
-              type: Error
+              type: parkingTypes.Reservation
     /confirm:
       post:
         description: Confirm reservation.
+        is: [ traitsLib.Error404 ]
         responses:
           200:
             body:
               application/json:
-                type: Reservation
-          404:
-            body:
-              application/json:
-                type: Error
+                type: parkingTypes.Reservation
     /cancel:
       post:
         description: Cancel reservation.
+        is: [ traitsLib.Error404 ]
         responses:
           200:
             body:
               application/json:
-                type: Reservation
-          404:
-            body:
-              application/json:
-                type: Error
+                type: parkingTypes.Reservation

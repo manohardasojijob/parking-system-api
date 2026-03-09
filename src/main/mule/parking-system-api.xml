@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:db="http://www.mulesoft.org/schema/mule/db"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
-http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd ">
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd ">
     <!-- HTTP Listener and Database config (in same file as flows so Anypoint Studio recognizes them) -->
     <http:listener-config name="parking-system-api-httpListenerConfig" doc:name="HTTP Listener Config">
         <http:listener-connection host="0.0.0.0" port="${http.private.port}" />
@@ -11,30 +7,12 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
     <db:config name="AzureSQL_Config" doc:name="Azure SQL Config">
         <db:generic-connection driverClassName="${sql.driverClassName}"
             url="jdbc:sqlserver://${sql.host}:1433;database=${sql.database};encrypt=true;trustServerCertificate=false;"
-            user="${sql.user}"
-            password="${sql.password}" />
+            user="${secure::sql.user}"
+            password="${secure::sql.password}" />
     </db:config>
+    <apikit:config name="parking-system-api-config" api="parking-system-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
     <flow name="parking-system-api-main">
         <http:listener config-ref="parking-system-api-httpListenerConfig" path="${api.path}">
-            <http:response statusCode="#[vars.httpStatus default 200]" />
-            <http:error-response statusCode="#[vars.httpStatus default 500]">
-                <http:body><![CDATA[#[payload]]]></http:body>
-            </http:error-response>
-        </http:listener>
-		<ee:transform doc:name="initiateLogVariables" doc:id="03793120-f751-441e-b08f-241180b76a75" >
-			<ee:message >
-			</ee:message>
-			<ee:variables >
-				<ee:set-variable variableName="flowDescription" ><![CDATA["Parking System API - zones, lots, slots, holds, reservations"]]></ee:set-variable>
-				<ee:set-variable variableName="sourceApp" ><![CDATA["Parking System API"]]></ee:set-variable>
-				<ee:set-variable variableName="targetApps" ><![CDATA["Azure SQL"]]></ee:set-variable>
-			</ee:variables>
-		</ee:transform>
-		<apikit:router config-ref="parking-system-api-config" />
-		<error-handler ref="global-error-handler" />
-    </flow>
-    <flow name="parking-system-api-console">
-        <http:listener config-ref="parking-system-api-httpListenerConfig" path="/api/console/*">
             <http:response statusCode="#[vars.httpStatus default 200]">
                 <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
             </http:response>
@@ -43,12 +21,102 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
                 <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
             </http:error-response>
         </http:listener>
+        <apikit:router config-ref="parking-system-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="parking-system-api-console">
+        <http:listener config-ref="parking-system-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
         <apikit:console config-ref="parking-system-api-config" />
         <error-handler>
             <on-error-propagate type="APIKIT:NOT_FOUND">
-                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="
-http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
-http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                <ee:transform doc:name="Transform Message">
                     <ee:message>
                         <ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -62,64 +130,64 @@ output application/json
             </on-error-propagate>
         </error-handler>
     </flow>
-    <flow name="get:\health:parking-system-api-config">
-        <flow-ref name="impl-get-health" doc:name="impl-get-health" />
+    <flow name="delete:\holds\(holdId):parking-system-api-config">
+		<flow-ref doc:name="impl-delete-hold" doc:id="acc78c07-3a74-40cc-8fca-83863237e180" name="impl-delete-hold" />
     </flow>
-    <flow name="get:\health\ready:parking-system-api-config">
-        <flow-ref name="impl-get-health-ready" doc:name="impl-get-health-ready" />
+    <flow name="patch:\slots\(slotId):application\json:parking-system-api-config">
+		<flow-ref doc:name="impl-patch-slot" doc:id="d1c6348c-6297-4427-873f-8ba621da84fe" name="impl-patch-slot" />
     </flow>
-    <flow name="get:\zones:parking-system-api-config">
-        <flow-ref name="impl-get-zones" doc:name="impl-get-zones" />
-    </flow>
-    <flow name="get:\zones\(zoneId):parking-system-api-config">
-        <flow-ref name="impl-get-zone-by-id" doc:name="impl-get-zone-by-id" />
-    </flow>
-    <flow name="get:\zones\(zoneId)\lots:parking-system-api-config">
-        <flow-ref name="impl-get-zone-lots" doc:name="impl-get-zone-lots" />
-    </flow>
-    <flow name="get:\lots:parking-system-api-config">
-        <flow-ref name="impl-get-lots" doc:name="impl-get-lots" />
-    </flow>
-    <flow name="get:\lots\(lotId):parking-system-api-config">
-        <flow-ref name="impl-get-lot-by-id" doc:name="impl-get-lot-by-id" />
-    </flow>
-    <flow name="get:\lots\(lotId)\slots:parking-system-api-config">
-        <flow-ref name="impl-get-lot-slots" doc:name="impl-get-lot-slots" />
+    <flow name="patch:\reservations\(reservationId):application\json:parking-system-api-config">
+		<flow-ref doc:name="impl-patch-reservation" doc:id="5e450f20-70b6-4c94-8225-9ae0c3864d00" name="impl-patch-reservation" />
     </flow>
     <flow name="get:\lots\(lotId)\availability:parking-system-api-config">
-        <flow-ref name="impl-get-lot-availability" doc:name="impl-get-lot-availability" />
+		<flow-ref doc:name="impl-get-lot-availability" doc:id="4b18554c-cd5e-4fe1-9e9a-221db3d6309a" name="impl-get-lot-availability" />
     </flow>
-    <flow name="get:\slots\(slotId):parking-system-api-config">
-        <flow-ref name="impl-get-slot-by-id" doc:name="impl-get-slot-by-id" />
+    <flow name="get:\health:parking-system-api-config">
+		<flow-ref doc:name="impl-get-health" doc:id="35658f11-a946-48a3-a874-c96e8cbfae24" name="impl-get-health" />
     </flow>
-    <flow name="patch:\slots\(slotId):parking-system-api-config">
-        <flow-ref name="impl-patch-slot" doc:name="impl-patch-slot" />
+    <flow name="get:\health\ready:parking-system-api-config">
+		<flow-ref doc:name="impl-get-health-ready" doc:id="80bc7991-ec1e-4c42-aa34-ff68b806fd92" name="impl-get-health-ready" />
     </flow>
-    <flow name="post:\holds:parking-system-api-config">
-        <flow-ref name="impl-post-holds" doc:name="impl-post-holds" />
+    <flow name="get:\zones\(zoneId)\lots:parking-system-api-config">
+		<flow-ref doc:name="impl-get-zone-lots" doc:id="a5e4c493-1aa6-4323-b2fa-12362434148b" name="impl-get-zone-lots" />
     </flow>
-    <flow name="get:\holds\(holdId):parking-system-api-config">
-        <flow-ref name="impl-get-hold-by-id" doc:name="impl-get-hold-by-id" />
-    </flow>
-    <flow name="delete:\holds\(holdId):parking-system-api-config">
-        <flow-ref name="impl-delete-hold" doc:name="impl-delete-hold" />
+    <flow name="get:\lots:parking-system-api-config">
+		<flow-ref doc:name="impl-get-lots" doc:id="0248be16-392c-42b0-bf05-2573989e395b" name="impl-get-lots" />
     </flow>
     <flow name="get:\reservations:parking-system-api-config">
-        <flow-ref name="impl-get-reservations" doc:name="impl-get-reservations" />
+		<flow-ref doc:name="impl-get-reservations" doc:id="89113283-117e-4498-ad95-b07453a3b477" name="impl-get-reservations" />
     </flow>
-    <flow name="post:\reservations:parking-system-api-config">
-        <flow-ref name="impl-post-reservations" doc:name="impl-post-reservations" />
+    <flow name="get:\lots\(lotId)\slots:parking-system-api-config">
+		<flow-ref doc:name="impl-get-lot-slots" doc:id="475ecd6e-196c-4468-a647-a42cfcdcfc27" name="impl-get-lot-slots" />
+    </flow>
+    <flow name="get:\slots\(slotId):parking-system-api-config">
+		<flow-ref doc:name="impl-get-slot-by-id" doc:id="3de225f3-3a94-457d-9658-55203e3a8438" name="impl-get-slot-by-id" />
+    </flow>
+    <flow name="get:\zones:parking-system-api-config">
+		<flow-ref doc:name="impl-get-zones" doc:id="7593bab4-8f1a-4955-a2e6-8b60b8b1700c" name="impl-get-zones" />
+    </flow>
+    <flow name="get:\holds\(holdId):parking-system-api-config">
+		<flow-ref doc:name="impl-get-hold-by-id" doc:id="176b90d4-d8b1-4594-a3a3-ed59090f4dda" name="impl-get-hold-by-id" />
+    </flow>
+    <flow name="get:\lots\(lotId):parking-system-api-config">
+		<flow-ref doc:name="impl-get-lot-by-id" doc:id="5e9cbaef-6819-485c-a8ad-c688a928e31f" name="impl-get-lot-by-id" />
     </flow>
     <flow name="get:\reservations\(reservationId):parking-system-api-config">
-        <flow-ref name="impl-get-reservation-by-id" doc:name="impl-get-reservation-by-id" />
+		<flow-ref doc:name="impl-get-reservation-by-id" doc:id="31b59ce8-ae5e-4525-b8f2-619b550645d4" name="impl-get-reservation-by-id" />
     </flow>
-    <flow name="patch:\reservations\(reservationId):parking-system-api-config">
-        <flow-ref name="impl-patch-reservation" doc:name="impl-patch-reservation" />
-    </flow>
-    <flow name="post:\reservations\(reservationId)\confirm:parking-system-api-config">
-        <flow-ref name="impl-post-reservation-confirm" doc:name="impl-post-reservation-confirm" />
+    <flow name="get:\zones\(zoneId):parking-system-api-config">
+		<flow-ref doc:name="impl-get-zone-by-id" doc:id="fd823c49-07fb-4211-a002-72cbc0aaa1a6" name="impl-get-zone-by-id" />
     </flow>
     <flow name="post:\reservations\(reservationId)\cancel:parking-system-api-config">
-        <flow-ref name="impl-post-reservation-cancel" doc:name="impl-post-reservation-cancel" />
+		<flow-ref doc:name="impl-post-reservation-cancel" doc:id="415aa78b-93f4-4220-8bac-0c6c5ee53b12" name="impl-post-reservation-cancel" />
     </flow>
-  </mule>
+    <flow name="post:\reservations\(reservationId)\confirm:parking-system-api-config">
+		<flow-ref doc:name="impl-post-reservation-confirm" doc:id="3c3115c0-28af-4c56-be53-2ca9d8daf663" name="impl-post-reservation-confirm" />
+    </flow>
+    <flow name="post:\holds:application\json:parking-system-api-config">
+		<flow-ref doc:name="impl-post-holds" doc:id="fdf0b41f-e88e-4eda-8791-4e1663c8e933" name="impl-post-holds" />
+    </flow>
+    <flow name="post:\reservations:application\json:parking-system-api-config">
+		<flow-ref doc:name="impl-post-reservations" doc:id="e6fb62c4-2985-463e-b8e1-0fc0cdb4606e" name="impl-post-reservations" />
+    </flow>
+</mule>

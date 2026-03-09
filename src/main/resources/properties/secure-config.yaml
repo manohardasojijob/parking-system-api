@@ -1,0 +1,6 @@
+
+# Azure SQL (Parking System API) - override SQL_PASSWORD via env or secure properties
+# driverClassName in a property avoids Anypoint Studio build-path validation of the class
+sql:
+  user: "![C6zRGMw2nG9f+jTwIV2xeQ==]"
+  password: "![oVbk6geC6Ji21yNfEK6LZ0FwQIdaMp2MSWAuOEBkwAw=]"

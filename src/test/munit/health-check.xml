@@ -21,7 +21,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
         <munit:behavior>
             <munit-tools:mock-when doc:name="Mock Listener" doc:id="5f313115-d7d6-4a14-928d-ed3c14a02311" processor="http:listener">
                 <munit-tools:with-attributes >
-                    <munit-tools:with-attribute whereValue="HTTP_Listener_config_domain_project" attributeName="config-ref" />
+                    <munit-tools:with-attribute whereValue="parking-system-api-httpListenerConfig" attributeName="config-ref" />
                 </munit-tools:with-attributes>
             </munit-tools:mock-when>
         </munit:behavior>
@@ -38,7 +38,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 			<munit-tools:mock-when doc:name="Mock when"
 				doc:id="e508f891-86a1-4bdd-ab79-b4a12aa454b9" processor="http:listener">
 				<munit-tools:with-attributes >
-					<munit-tools:with-attribute whereValue="HTTP_Listener_config_domain_project" attributeName="config-ref" />
+					<munit-tools:with-attribute whereValue="parking-system-api-httpListenerConfig" attributeName="config-ref" />
 				</munit-tools:with-attributes>
 				<munit-tools:then-return >
 					<munit-tools:error typeId="HTTP:CONNECTIVITY" />

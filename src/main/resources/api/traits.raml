@@ -1,0 +1,28 @@
+#%RAML 1.0 Library
+uses:
+  parkingTypes: datatypes.raml
+traits:
+  Error400:
+    responses:
+      400:
+        body:
+          application/json:
+            type: parkingTypes.Error
+  Error404:
+    responses:
+      404:
+        body:
+          application/json:
+            type: parkingTypes.Error
+  Error409:
+    responses:
+      409:
+        body:
+          application/json:
+            type: parkingTypes.Error
+  Error503:
+    responses:
+      503:
+        body:
+          application/json:
+            type: parkingTypes.Error

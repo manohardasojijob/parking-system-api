@@ -1,0 +1,16 @@
+#%RAML 1.0 Library
+securitySchemes:
+  clientEnforcement:
+    type: x-client-id-enforcement
+    description: Secures the API requiring a Client ID and Secret provided by Anypoint API Manager.
+    describedBy:
+      headers:
+        client_id:
+          type: string
+          required: true
+        client_secret:
+          type: string
+          required: true
+      responses:
+        401:
+          description: Unauthorized or invalid client application credentials.

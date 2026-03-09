@@ -1,0 +1,135 @@
+#%RAML 1.0 Library
+types:
+  Zone:
+    type: object
+    properties:
+      zoneId: string
+      zoneName: string
+      zoneCode: string
+      city: string
+      state: string
+      latitude: number
+      longitude: number
+      createdAt?: string
+      updatedAt?: string
+  ZoneList:
+    type: object
+    properties:
+      zones: Zone[]
+      total?: number
+  Lot:
+    type: object
+    properties:
+      lotId: string
+      zoneId: string
+      lotName: string
+      lotCode: string
+      address: string
+      latitude: number
+      longitude: number
+      totalSlots: number
+      hourlyRateInr: number
+      dailyMaxInr?: number
+      operatingHours?: string
+      lotType: string
+      isActive: boolean
+      createdAt?: string
+      updatedAt?: string
+  LotList:
+    type: object
+    properties:
+      lots: Lot[]
+      total?: number
+  Slot:
+    type: object
+    properties:
+      slotId: string
+      lotId: string
+      slotNumber: string
+      floorLevel?: string
+      slotType: string
+      sensorId?: string
+      status: string
+      lastStatusChange?: string
+      createdAt?: string
+      updatedAt?: string
+  SlotList:
+    type: object
+    properties:
+      slots: Slot[]
+      total?: number
+  AvailabilitySummary:
+    type: object
+    properties:
+      lotId: string
+      available: number
+      occupied: number
+      reserved: number
+      maintenance: number
+      offline: number
+  SlotStatusUpdate:
+    type: object
+    properties:
+      status: string
+      eventSource?: string
+      eventId?: string
+  HoldRequest:
+    type: object
+    properties:
+      slotId: string
+      userId: string
+      holdExpiryMinutes: number
+  Hold:
+    type: object
+    properties:
+      holdId: string
+      slotId: string
+      userId: string
+      holdStart: string
+      holdExpiry: string
+      status: string
+      createdAt?: string
+  ReservationRequest:
+    type: object
+    properties:
+      slotId: string
+      userId: string
+      vehicleNumber: string
+      vehicleType: string
+      startTime: string
+      endTime: string
+  ReservationUpdate:
+    type: object
+    properties:
+      status?: string
+      actualEntryTime?: string
+      actualExitTime?: string
+      amountInr?: number
+      paymentStatus?: string
+  Reservation:
+    type: object
+    properties:
+      reservationId: string
+      slotId: string
+      userId: string
+      vehicleNumber: string
+      vehicleType: string
+      startTime: string
+      endTime: string
+      actualEntryTime?: string
+      actualExitTime?: string
+      status: string
+      amountInr?: number
+      paymentStatus?: string
+      createdAt?: string
+      updatedAt?: string
+  ReservationList:
+    type: object
+    properties:
+      reservations: Reservation[]
+      total?: number
+  Error:
+    type: object
+    properties:
+      message: string
+      code?: string

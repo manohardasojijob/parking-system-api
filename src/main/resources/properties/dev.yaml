@@ -3,14 +3,14 @@ api:
   #API Configurations
   name: "${project.name}"
   version: "${api.version}"
-  path: /api/v1/*
+  path: api/v1/*
   
 http:
   private:
     port: "8091"
   
 httpsRequest:
-  host: "api-dev.acme.com"
+  host: "sm-api-dev.acme.com"
   port: "443"
   path:
     sqlpath: "/finance/inbound/oracle-erp-sql-sys-api/v1/oracle/runsql"
@@ -20,8 +20,7 @@ httpsRequest:
     frequency: "2000"
     attempts: "2" 
   clientId: "replace with actual values"
-  clientSecret: "replace with actual values"
-        
+  clientSecret: "replace with actual values"    
 
 
 # Azure SQL (Parking System API) - override sql.password in CloudHub/Anypoint per environment
@@ -30,5 +29,5 @@ sql:
   host: "parking-sql-dev-73b543.database.windows.net"
   port: "1433"
   database: "parking-db"
-  user: "parkingadmin"
-  password: "P@rk1ng#Admin$2026!Secure"
+  user: "![C6zRGMw2nG9f+jTwIV2xeQ==]"
+  password: "![oVbk6geC6Ji21yNfEK6LZ0FwQIdaMp2MSWAuOEBkwAw=]"

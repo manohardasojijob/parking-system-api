@@ -3,7 +3,7 @@ api:
   #API Configurations
   name: "${project.name}"
   version: "${api.version}"
-  path: /api/v1/*
+  path: api/v1/*
   
 http:
   private:
@@ -33,5 +33,5 @@ sql:
   host: "parking-sql-dev-73b543.database.windows.net"
   port: "1433"
   database: "parking-db"
-  user: "parkingadmin"
-  password: "P@rk1ng#Admin$2026!Secure"
+  user: "![C6zRGMw2nG9f+jTwIV2xeQ==]"
+  password: "![oVbk6geC6Ji21yNfEK6LZ0FwQIdaMp2MSWAuOEBkwAw=]"

@@ -52,12 +52,11 @@ http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/m
 			</tls:context>
 		</http:request-connection>
 	</http:request-config>
-	<!-- HTTP Listener and DB config moved to parking-system-api.xml so Anypoint Studio recognizes them -->
+	<!-- HTTP Listener and DB config in parking-system-api.xml so Anypoint Studio recognizes them -->
 	<!-- api-gateway:autodiscovery apiId="${api.id}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="6562f024-9baf-4383-a9bc-247d0e816347" flowRef="parking-system-api-main" /-->
    
     <!-- Global Error Handler -->
     <import doc:name="Import-global-error-handler" doc:id="d271d3b4-99b1-4ae2-8274-770532d0d8eb" file="global-error-handler.xml" doc:description="Import Global Exception Handler Config"/>
 	<configuration doc:name="Configuration-global-error-handler" doc:id="597a878f-aab2-46a1-92ef-8a0737601a4c" defaultErrorHandler-ref="global-error-handler" />
-     <apikit:config name="parking-system-api-config" api="${raml.api.location}" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />          
 
 </mule>
