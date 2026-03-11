@@ -28,6 +28,4 @@ sql:
   host: "parking-sql-dev-73b543.database.windows.net"
   port: "1433"
   database: "parking-db"
-  user: "parkingadmin"
-  password: "P@rk1ng#Admin$2026!Secure"
   

@@ -7,8 +7,8 @@
     <db:config name="AzureSQL_Config" doc:name="Azure SQL Config">
         <db:generic-connection driverClassName="${sql.driverClassName}"
             url="jdbc:sqlserver://${sql.host}:1433;database=${sql.database};encrypt=true;trustServerCertificate=false;"
-            user="${secure::sql.user}"
-            password="${secure::sql.password}" />
+            user="${azure-key-vault-properties-provider::secret::mule-db-user}"
+            password="${azure-key-vault-properties-provider::secret::mule-db-password}" />
     </db:config>
     <apikit:config name="parking-system-api-config" api="parking-system-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
     <flow name="parking-system-api-main">

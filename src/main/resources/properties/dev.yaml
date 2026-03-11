@@ -29,5 +29,3 @@ sql:
   host: "parking-sql-dev-73b543.database.windows.net"
   port: "1433"
   database: "parking-db"
-  user: "![C6zRGMw2nG9f+jTwIV2xeQ==]"
-  password: "![oVbk6geC6Ji21yNfEK6LZ0FwQIdaMp2MSWAuOEBkwAw=]"

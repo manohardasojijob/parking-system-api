@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
-	xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq"
-    xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
-    xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
-    xmlns:http="http://www.mulesoft.org/schema/mule/http"
-    xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+<mule xmlns:azure-key-vault-properties-provider="http://www.mulesoft.org/schema/mule/azure-key-vault-properties-provider"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+    xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq"
+    xmlns:spring="http://www.mulesoft.org/schema/mule/spring" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+    xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+    xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
 http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
 http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
 http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd
 http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
-http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/azure-key-vault-properties-provider http://www.mulesoft.org/schema/mule/azure-key-vault-properties-provider/current/mule-azure-key-vault-properties-provider.xsd">
 
     
     <!-- Non-secure regular environment properties -->    
@@ -30,17 +31,6 @@ http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/m
         file="properties/common-config.yaml" />
         
     <!-- Global Properties -->
-
-<secure-properties:config
-        name="secure-env-properties1"
-        doc:name="Secure Environment Properties"
-        doc:id="510ce690-21ce-4aa8-97ff-2149b19ffa4b"
-        file="properties/${mule.env}.yaml"
-        key="${mule.vault.key}"
-        doc:description="Environment specific secured properties">
-        <secure-properties:encrypt
-            algorithm="Blowfish" />
-    </secure-properties:config>
 	
 	<http:request-config name="HTTPS_Request_configuration" doc:name="HTTP Request configuration" doc:id="2c6e6a27-2685-4dfa-8aaf-047918bf1663" >
 		<http:request-connection host="${httpsRequest.host}" port="${httpsRequest.port}" protocol="HTTPS">
@@ -58,5 +48,7 @@ http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/m
     <!-- Global Error Handler -->
     <import doc:name="Import-global-error-handler" doc:id="d271d3b4-99b1-4ae2-8274-770532d0d8eb" file="global-error-handler.xml" doc:description="Import Global Exception Handler Config"/>
 	<configuration doc:name="Configuration-global-error-handler" doc:id="597a878f-aab2-46a1-92ef-8a0737601a4c" defaultErrorHandler-ref="global-error-handler" />
+	<azure-key-vault-properties-provider:config name="Azure_Key_Vault_Properties_Provider_Config" doc:name="Azure Key Vault Properties Provider Config" doc:id="dee3b951-c36f-454d-b53a-48c42f8c3856" />
+
 
 </mule>

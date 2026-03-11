@@ -424,7 +424,7 @@ output application/java
 						<ee:transform doc:name="Set dbSql and dbParams (insert hold)">
 							<ee:message />
 							<ee:variables>
-								<ee:set-variable variableName="dbSql"><![CDATA["INSERT INTO holds (slot_id, user_id, hold_expiry) VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), CAST(:userId AS UNIQUEIDENTIFIER), DATEADD(MINUTE, :holdExpiryMinutes, GETUTCDATE()))"]]></ee:set-variable>
+								<ee:set-variable variableName="dbSql"><![CDATA["INSERT INTO holds (slot_id, user_id, hold_expiry) VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), (CAST(:userId AS NVARCHAR(100))), DATEADD(MINUTE, :holdExpiryMinutes, GETUTCDATE()))"]]></ee:set-variable>
 								<ee:set-variable variableName="dbParams"><![CDATA[#[output application/java --- { slotId: vars.holdRequest.slotId, userId: vars.holdRequest.userId, holdExpiryMinutes: vars.holdRequest.holdExpiryMinutes as Number }]]]></ee:set-variable>
 							</ee:variables>
 						</ee:transform>
@@ -432,7 +432,7 @@ output application/java
 						<ee:transform doc:name="Set dbSql and dbParams (select inserted hold)">
 							<ee:message />
 							<ee:variables>
-								<ee:set-variable variableName="dbSql"><![CDATA["SELECT TOP 1 * FROM holds WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER) AND user_id = CAST(:userId AS UNIQUEIDENTIFIER) ORDER BY created_at DESC"]]></ee:set-variable>
+								<ee:set-variable variableName="dbSql"><![CDATA["SELECT TOP 1 * FROM holds WHERE slot_id = CAST(:slotId AS UNIQUEIDENTIFIER) AND user_id = (CAST(:userId AS NVARCHAR(100))) ORDER BY created_at DESC"]]></ee:set-variable>
 								<ee:set-variable variableName="dbParams"><![CDATA[#[output application/java --- { slotId: vars.holdRequest.slotId, userId: vars.holdRequest.userId }]]]></ee:set-variable>
 							</ee:variables>
 						</ee:transform>
@@ -575,7 +575,12 @@ output application/java
 		<ee:transform doc:name="Set dbSql and dbParams">
 			<ee:message />
 			<ee:variables>
-				<ee:set-variable variableName="dbSql"><![CDATA["SELECT * FROM reservations WHERE (CAST(:userId AS UNIQUEIDENTIFIER) IS NULL OR user_id = CAST(:userId AS UNIQUEIDENTIFIER)) AND (CAST(:status AS NVARCHAR(20)) IS NULL OR status = :status) ORDER BY created_at DESC OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"]]></ee:set-variable>
+				<ee:set-variable variableName="dbSql"><![CDATA["SELECT * FROM reservations 
+WHERE (CAST(:userId AS NVARCHAR(100)) IS NULL OR user_id = CAST(:userId AS NVARCHAR(100))) 
+AND (CAST(:status AS NVARCHAR(20)) IS NULL OR status = CAST(:status AS NVARCHAR(20))) 
+ORDER BY created_at DESC 
+OFFSET CAST(:offset AS INT) ROWS 
+FETCH NEXT CAST(:limit AS INT) ROWS ONLY"]]></ee:set-variable>
 				<ee:set-variable variableName="dbParams"><![CDATA[%dw 2.0 
 output application/java 
 --- 
@@ -645,13 +650,13 @@ output application/java
 								<ee:transform doc:name="Set dbSql and dbParams (insert reservation)">
 									<ee:message />
 									<ee:variables>
-										<ee:set-variable variableName="dbSql"><![CDATA["INSERT INTO reservations (slot_id, user_id, vehicle_number, vehicle_type, start_time, end_time) VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), CAST(:userId AS UNIQUEIDENTIFIER), :vehicleNumber, :vehicleType, CAST(:startTime AS DATETIME2), CAST(:endTime AS DATETIME2))"]]></ee:set-variable>
+										<ee:set-variable variableName="dbSql"><![CDATA["INSERT INTO reservations (slot_id, user_id, vehicle_number, vehicle_type, start_time, end_time) VALUES (CAST(:slotId AS UNIQUEIDENTIFIER), (CAST(:userId AS NVARCHAR(100))), :vehicleNumber, :vehicleType, CAST(:startTime AS DATETIME2), CAST(:endTime AS DATETIME2))"]]></ee:set-variable>
 										<ee:set-variable variableName="dbParams"><![CDATA[#[output application/java --- { slotId: vars.resRequest.slotId, userId: vars.resRequest.userId, vehicleNumber: vars.resRequest.vehicleNumber, vehicleType: vars.resRequest.vehicleType, startTime: vars.resRequest.startTime, endTime: vars.resRequest.endTime }]]]></ee:set-variable>
 									</ee:variables>
 								</ee:transform>
 								<flow-ref name="db-insert" doc:name="db-insert" />
 								<db:select config-ref="AzureSQL_Config" doc:name="Select inserted reservation">
-									<db:sql><![CDATA[#[ "SELECT TOP 1 * FROM reservations WHERE slot_id = CAST('" ++ vars.resRequest.slotId ++ "' AS UNIQUEIDENTIFIER) AND user_id = CAST('" ++ vars.resRequest.userId ++ "' AS UNIQUEIDENTIFIER) ORDER BY created_at DESC" ]]]></db:sql>
+									<db:sql><![CDATA[#[ "SELECT TOP 1 * FROM reservations WHERE slot_id = CAST('" ++ vars.resRequest.slotId ++ "' AS UNIQUEIDENTIFIER) AND user_id = '" ++ vars.resRequest.userId ++ "' ORDER BY created_at DESC" ]]]></db:sql>
 									<db:input-parameters><![CDATA[#[output application/java --- {}]]]></db:input-parameters>
 								</db:select>
 								<flow-ref name="log-flow-end" doc:name="log-flow-end" />
